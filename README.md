@@ -33,6 +33,7 @@ tflint --init
 | Name | Description | Severity | Enabled |
 | --- | --- | --- | --- |
 | foreach_toset | `{ for x in list : x => x }` 패턴을 `toset()`으로 변환 (autofix 지원) | WARNING | ✔ |
+| sort_provider_app_map | `provider_to_app_map` 내 키 알파벳순 정렬 및 불필요한 공백 제거 (autofix 지원) | WARNING | ✔ |
 
 ## Building
 
@@ -80,5 +81,8 @@ tflint
 2. `tests/` 디렉토리에 테스트 파일 생성
 3. `main.go`의 `Rules` 슬라이스에 룰 등록
 4. `README.md`의 Rules 테이블 업데이트
+
+**규칙:**
+- 룰 이름은 동사형으로 작성 (예: `sort_xxx`, `validate_xxx`, `require_xxx`)
 
 참고: [TFLint Custom Rules Guide](https://github.com/terraform-linters/tflint/blob/master/docs/developer-guide/plugins.md)
