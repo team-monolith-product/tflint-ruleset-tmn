@@ -25,14 +25,6 @@ jobs:
       - name: Run tests
         run: make test
 
-      - name: Get version info
-        id: version
-        run: |
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          BASE_VERSION=$(grep 'Version:' main.go | sed 's/.*"\(.*\)".*/\1/')
-          DEV_VERSION="v${BASE_VERSION}-dev.${SHORT_SHA}"
-          echo "dev_version=${DEV_VERSION}" >> "$GITHUB_OUTPUT"
-
       - name: Run GoReleaser (snapshot)
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
@@ -42,19 +34,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete existing dev release
-        run: gh release delete ${{ steps.version.outputs.dev_version }} --yes || true
+        run: gh release delete dev-latest --cleanup-tag --yes || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create dev pre-release
         run: |
-          gh release create ${{ steps.version.outputs.dev_version }} \
-            --title "${{ steps.version.outputs.dev_version }}" \
+          gh release create dev-latest \
+            --title "dev-latest" \
             --notes "Development build from \`develop\` branch
 
           Commit: ${{ github.sha }}
+          Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-          ⚠️ This is a pre-release for testing purposes." \
+          This is a pre-release for testing purposes." \
             --prerelease \
             dist/*.zip dist/checksums.txt
         env:
