@@ -65,7 +65,7 @@ tflint
 
 | Branch | 동작 |
 | --- | --- |
-| `develop` | Push 시 `dev-latest` pre-release 업데이트 |
+| `develop` | Push 시 `v0.0.0-dev` pre-release 업데이트 |
 | `main` | Push 시 `main.go`의 버전으로 정식 릴리즈 자동 생성 |
 
 ### 새 버전 릴리즈

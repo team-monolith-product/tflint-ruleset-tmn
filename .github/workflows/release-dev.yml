@@ -34,14 +34,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete existing dev release
-        run: gh release delete dev-latest --cleanup-tag --yes || true
+        run: gh release delete v0.0.0-dev --cleanup-tag --yes || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create dev pre-release
         run: |
-          gh release create dev-latest \
-            --title "dev-latest" \
+          gh release create v0.0.0-dev \
+            --title "v0.0.0-dev" \
             --notes "Development build from \`develop\` branch
 
           Commit: ${{ github.sha }}
