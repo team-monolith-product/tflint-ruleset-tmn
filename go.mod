@@ -1,4 +1,4 @@
-module github.com/terraform-linters/tflint-ruleset-template
+module github.com/team-monolith-product/tflint-ruleset-tmn
 
 go 1.25.3
 
