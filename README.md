@@ -6,7 +6,7 @@
 
 ## Requirements
 
-- TFLint v0.46+
+- TFLint v0.47+ (autofix 지원)
 - Go v1.22+ (빌드 시)
 
 ## Installation
@@ -32,10 +32,7 @@ tflint --init
 
 | Name | Description | Severity | Enabled |
 | --- | --- | --- | --- |
-| aws_instance_example_type | EC2 인스턴스 타입 검증 | ERROR | ✔ |
-| aws_s3_bucket_example_lifecycle_rule | S3 버킷 lifecycle 룰 검증 | ERROR | ✔ |
-| google_compute_ssl_policy | GCP SSL 정책 검증 | WARNING | ✔ |
-| terraform_backend_type | Terraform backend 타입 검증 | ERROR | ✔ |
+| foreach_toset | `{ for x in list : x => x }` 패턴을 `toset()`으로 변환 (autofix 지원) | WARNING | ✔ |
 
 ## Building
 
@@ -79,8 +76,9 @@ tflint
 
 ## 새 룰 추가하기
 
-1. `rules/` 디렉토리에 새 룰 파일 생성
-2. `main.go`의 `Rules` 슬라이스에 룰 등록
-3. 테스트 작성 (`_test.go`)
+1. `rules/` 디렉토리에 룰 파일 생성
+2. `tests/` 디렉토리에 테스트 파일 생성
+3. `main.go`의 `Rules` 슬라이스에 룰 등록
+4. `README.md`의 Rules 테이블 업데이트
 
 참고: [TFLint Custom Rules Guide](https://github.com/terraform-linters/tflint/blob/master/docs/developer-guide/plugins.md)

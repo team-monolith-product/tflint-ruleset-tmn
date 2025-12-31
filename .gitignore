@@ -1,5 +1,5 @@
 # don't track built binary
-/tflint-ruleset-template
+/tflint-ruleset-tmn
 
 .idea
 .claude
