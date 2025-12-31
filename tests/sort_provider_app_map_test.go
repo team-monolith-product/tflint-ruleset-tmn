@@ -59,6 +59,21 @@ provider_to_app_map = {
 }`,
 			expected: 0,
 		},
+		{
+			name: "multiple providers with issues should trigger multiple",
+			content: `
+provider_to_app_map = {
+    service = {
+        zzz_config = {}
+        aaa_config = {}
+    }
+    jupyter = {
+        zzz_config = {}
+        aaa_config = {}
+    }
+}`,
+			expected: 2,
+		},
 	}
 
 	rule := rules.NewSortProviderAppMapRule()

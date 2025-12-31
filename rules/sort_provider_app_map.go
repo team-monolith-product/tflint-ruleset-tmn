@@ -85,15 +85,21 @@ func (r *SortProviderAppMapRule) checkProviderToAppMap(runner tflint.Runner, src
 			keyRange := item.KeyExpr.Range()
 			keyName := string(keyRange.SliceBytes(src))
 
-			return runner.EmitIssueWithFix(
+			// Capture variables for closure
+			capturedObj := nestedObj
+
+			err := runner.EmitIssueWithFix(
 				r,
 				"Keys in "+keyName+" should be sorted alphabetically with no extra blank lines",
 				nestedObj.Range(),
 				func(f tflint.Fixer) error {
-					fixed := r.fixNestedObject(nestedObj, src)
-					return f.ReplaceText(nestedObj.Range(), fixed)
+					fixed := r.fixNestedObject(capturedObj, src)
+					return f.ReplaceText(capturedObj.Range(), fixed)
 				},
 			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
