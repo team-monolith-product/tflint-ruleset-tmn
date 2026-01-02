@@ -74,6 +74,19 @@ provider_to_app_map = {
 }`,
 			expected: 2,
 		},
+		{
+			name: "inside locals block should work",
+			content: `
+locals {
+    provider_to_app_map = {
+        service = {
+            zzz_config = {}
+            aaa_config = {}
+        }
+    }
+}`,
+			expected: 1,
+		},
 	}
 
 	rule := rules.NewSortProviderAppMapRule()

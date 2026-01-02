@@ -58,9 +58,23 @@ func (r *SortProviderAppMapRule) checkFile(runner tflint.Runner, file *hcl.File)
 		return nil
 	}
 
+	// Check top-level attributes
 	for name, attr := range body.Attributes {
 		if name == "provider_to_app_map" {
-			return r.checkProviderToAppMap(runner, file.Bytes, attr)
+			if err := r.checkProviderToAppMap(runner, file.Bytes, attr); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Check inside blocks (e.g., locals)
+	for _, block := range body.Blocks {
+		for name, attr := range block.Body.Attributes {
+			if name == "provider_to_app_map" {
+				if err := r.checkProviderToAppMap(runner, file.Bytes, attr); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
