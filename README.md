@@ -4,6 +4,8 @@
 
 팀모노리스 Terraform 리포지토리를 위한 커스텀 TFLint 룰셋입니다.
 
+**적용 대상:** [ped-terraform](https://github.com/team-monolith-product/ped-terraform)
+
 ## Requirements
 
 - TFLint v0.47+ (autofix 지원)

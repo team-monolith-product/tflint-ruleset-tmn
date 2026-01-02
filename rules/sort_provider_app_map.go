@@ -125,6 +125,8 @@ func (r *SortProviderAppMapRule) checkNestedObjectSorting(obj *hclsyntax.ObjectC
 		return ""
 	}
 
+	lines := bytes.Split(src, []byte("\n"))
+
 	// Extract keys and check sorting
 	var keys []string
 	for _, item := range obj.Items {
@@ -145,11 +147,21 @@ func (r *SortProviderAppMapRule) checkNestedObjectSorting(obj *hclsyntax.ObjectC
 	}
 
 	// Check for extra blank lines between items
+	// Only flag if there are actual blank lines (not comments)
 	for i := 0; i < len(obj.Items)-1; i++ {
 		currentEnd := obj.Items[i].ValueExpr.Range().End.Line
 		nextStart := obj.Items[i+1].KeyExpr.Range().Start.Line
-		if nextStart-currentEnd > 1 {
-			return "extra blank lines"
+
+		// Check each line between items
+		for lineNum := currentEnd + 1; lineNum < nextStart; lineNum++ {
+			if lineNum > 0 && lineNum <= len(lines) {
+				line := string(lines[lineNum-1])
+				trimmed := strings.TrimSpace(line)
+				// If it's a blank line (not a comment), flag it
+				if trimmed == "" {
+					return "extra blank lines"
+				}
+			}
 		}
 	}
 

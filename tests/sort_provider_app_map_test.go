@@ -100,6 +100,33 @@ provider_to_app_map = {
 }`,
 			expected: 1,
 		},
+		{
+			name: "commented out blocks between items should not trigger",
+			content: `
+provider_to_app_map = {
+    service = {
+        aaa_config = {}
+        # bbb_config = {
+        #   path = "bbb"
+        # }
+        ccc_config = {}
+    }
+}`,
+			expected: 0,
+		},
+		{
+			name: "mixed comments and blank lines should trigger",
+			content: `
+provider_to_app_map = {
+    service = {
+        aaa_config = {}
+        # some comment
+
+        ccc_config = {}
+    }
+}`,
+			expected: 1,
+		},
 	}
 
 	rule := rules.NewSortProviderAppMapRule()
