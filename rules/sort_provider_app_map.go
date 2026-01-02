@@ -185,7 +185,13 @@ func (r *SortProviderAppMapRule) fixNestedObject(obj *hclsyntax.ObjectConsExpr, 
 		var contentLines []string
 		for lineNum := startLine; lineNum <= endLine; lineNum++ {
 			if lineNum > 0 && lineNum <= len(lines) {
-				contentLines = append(contentLines, string(lines[lineNum-1]))
+				line := string(lines[lineNum-1])
+				trimmed := strings.TrimSpace(line)
+				// Skip blank lines, but keep comments and actual content
+				if trimmed == "" {
+					continue
+				}
+				contentLines = append(contentLines, line)
 			}
 		}
 
@@ -201,7 +207,13 @@ func (r *SortProviderAppMapRule) fixNestedObject(obj *hclsyntax.ObjectConsExpr, 
 	var trailingContent []string
 	for lineNum := lastItemEndLine + 1; lineNum < closeBraceLine; lineNum++ {
 		if lineNum > 0 && lineNum <= len(lines) {
-			trailingContent = append(trailingContent, string(lines[lineNum-1]))
+			line := string(lines[lineNum-1])
+			trimmed := strings.TrimSpace(line)
+			// Skip blank lines, but keep comments
+			if trimmed == "" {
+				continue
+			}
+			trailingContent = append(trailingContent, line)
 		}
 	}
 
