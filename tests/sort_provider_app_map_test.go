@@ -192,6 +192,8 @@ provider_to_app_map = {
         zebra_config = {}
         # comment for alpha
         alpha_config = {}
+        # trailing comment
+        # another trailing comment
     }
 }`
 
@@ -207,12 +209,18 @@ provider_to_app_map = {
 	changes := runner.Changes()
 	fixed := string(changes["local_config.tf"])
 
-	// Check that comments are preserved
+	// Check that all comments are preserved
 	if indexOf(fixed, "# comment for alpha") == -1 {
 		t.Errorf("comment for alpha was lost\nfixed:\n%s", fixed)
 	}
 	if indexOf(fixed, "# comment for zebra") == -1 {
 		t.Errorf("comment for zebra was lost\nfixed:\n%s", fixed)
+	}
+	if indexOf(fixed, "# trailing comment") == -1 {
+		t.Errorf("trailing comment was lost\nfixed:\n%s", fixed)
+	}
+	if indexOf(fixed, "# another trailing comment") == -1 {
+		t.Errorf("another trailing comment was lost\nfixed:\n%s", fixed)
 	}
 
 	// Check that alpha comment comes before alpha_config

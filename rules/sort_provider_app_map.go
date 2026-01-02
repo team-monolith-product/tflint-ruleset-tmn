@@ -157,42 +157,35 @@ func (r *SortProviderAppMapRule) checkNestedObjectSorting(obj *hclsyntax.ObjectC
 }
 
 func (r *SortProviderAppMapRule) fixNestedObject(obj *hclsyntax.ObjectConsExpr, src []byte) string {
+	if len(obj.Items) == 0 {
+		return string(obj.Range().SliceBytes(src))
+	}
+
 	type entry struct {
 		key     string
-		content string // includes preceding comments
+		content string // full content including preceding comments/whitespace
 	}
 
 	lines := bytes.Split(src, []byte("\n"))
 	var entries []entry
 
-	// Extract each key-value pair with preceding comments
+	// Extract each key-value pair with ALL preceding content (comments, blank lines, etc.)
 	for i, item := range obj.Items {
 		keyRange := item.KeyExpr.Range()
 		key := string(keyRange.SliceBytes(src))
 
-		// Find the start line for this entry (including comments)
 		var startLine int
 		if i == 0 {
-			// First item: start on the line after the opening brace
 			startLine = obj.OpenRange.End.Line + 1
 		} else {
-			// Subsequent items: start on the line after previous item's value
 			startLine = obj.Items[i-1].ValueExpr.Range().End.Line + 1
 		}
-
-		// Collect lines from startLine to end of this item's value
 		endLine := item.ValueExpr.Range().End.Line
 
 		var contentLines []string
 		for lineNum := startLine; lineNum <= endLine; lineNum++ {
 			if lineNum > 0 && lineNum <= len(lines) {
-				line := string(lines[lineNum-1])
-				// Skip empty lines before the comment/key, but keep comments
-				trimmed := strings.TrimSpace(line)
-				if trimmed == "" && lineNum < item.KeyExpr.Range().Start.Line {
-					continue
-				}
-				contentLines = append(contentLines, line)
+				contentLines = append(contentLines, string(lines[lineNum-1]))
 			}
 		}
 
@@ -200,6 +193,16 @@ func (r *SortProviderAppMapRule) fixNestedObject(obj *hclsyntax.ObjectConsExpr, 
 			key:     key,
 			content: strings.Join(contentLines, "\n"),
 		})
+	}
+
+	// Capture trailing content (comments after last item, before closing brace)
+	lastItemEndLine := obj.Items[len(obj.Items)-1].ValueExpr.Range().End.Line
+	closeBraceLine := obj.SrcRange.End.Line
+	var trailingContent []string
+	for lineNum := lastItemEndLine + 1; lineNum < closeBraceLine; lineNum++ {
+		if lineNum > 0 && lineNum <= len(lines) {
+			trailingContent = append(trailingContent, string(lines[lineNum-1]))
+		}
 	}
 
 	// Sort by key
@@ -216,8 +219,16 @@ func (r *SortProviderAppMapRule) fixNestedObject(obj *hclsyntax.ObjectConsExpr, 
 			buf.WriteString("\n")
 		}
 	}
+
+	// Add trailing content
+	for _, line := range trailingContent {
+		buf.WriteString("\n")
+		buf.WriteString(line)
+	}
+
 	buf.WriteString("\n")
-	// Close brace with parent indent (detect from opening brace line)
+
+	// Close brace with parent indent
 	openLine := obj.OpenRange.Start.Line
 	if openLine > 0 && openLine <= len(lines) {
 		lineContent := string(lines[openLine-1])
