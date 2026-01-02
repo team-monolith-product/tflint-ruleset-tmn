@@ -158,28 +158,48 @@ func (r *SortProviderAppMapRule) checkNestedObjectSorting(obj *hclsyntax.ObjectC
 
 func (r *SortProviderAppMapRule) fixNestedObject(obj *hclsyntax.ObjectConsExpr, src []byte) string {
 	type entry struct {
-		key   string
-		value string
+		key     string
+		content string // includes preceding comments
 	}
 
+	lines := bytes.Split(src, []byte("\n"))
 	var entries []entry
 
-	// Extract each key-value pair
-	for _, item := range obj.Items {
+	// Extract each key-value pair with preceding comments
+	for i, item := range obj.Items {
 		keyRange := item.KeyExpr.Range()
 		key := string(keyRange.SliceBytes(src))
 
-		// Get the full item text from key start to value end
-		itemStart := item.KeyExpr.Range().Start
-		itemEnd := item.ValueExpr.Range().End
-		fullRange := hcl.Range{
-			Filename: keyRange.Filename,
-			Start:    itemStart,
-			End:      itemEnd,
+		// Find the start line for this entry (including comments)
+		var startLine int
+		if i == 0 {
+			// First item: start on the line after the opening brace
+			startLine = obj.OpenRange.End.Line + 1
+		} else {
+			// Subsequent items: start on the line after previous item's value
+			startLine = obj.Items[i-1].ValueExpr.Range().End.Line + 1
 		}
-		fullText := string(fullRange.SliceBytes(src))
 
-		entries = append(entries, entry{key: key, value: fullText})
+		// Collect lines from startLine to end of this item's value
+		endLine := item.ValueExpr.Range().End.Line
+
+		var contentLines []string
+		for lineNum := startLine; lineNum <= endLine; lineNum++ {
+			if lineNum > 0 && lineNum <= len(lines) {
+				line := string(lines[lineNum-1])
+				// Skip empty lines before the comment/key, but keep comments
+				trimmed := strings.TrimSpace(line)
+				if trimmed == "" && lineNum < item.KeyExpr.Range().Start.Line {
+					continue
+				}
+				contentLines = append(contentLines, line)
+			}
+		}
+
+		entries = append(entries, entry{
+			key:     key,
+			content: strings.Join(contentLines, "\n"),
+		})
 	}
 
 	// Sort by key
@@ -187,26 +207,30 @@ func (r *SortProviderAppMapRule) fixNestedObject(obj *hclsyntax.ObjectConsExpr, 
 		return entries[i].key < entries[j].key
 	})
 
-	// Detect indentation from the first item
-	indent := r.detectIndent(obj, src)
-
 	// Build the fixed object
 	var buf bytes.Buffer
 	buf.WriteString("{\n")
 	for i, e := range entries {
-		buf.WriteString(indent)
-		buf.WriteString(e.value)
+		buf.WriteString(e.content)
 		if i < len(entries)-1 {
 			buf.WriteString("\n")
 		}
 	}
 	buf.WriteString("\n")
-	// Close brace with parent indent
-	parentIndent := strings.TrimSuffix(indent, "    ")
-	if parentIndent == "" {
-		parentIndent = strings.TrimSuffix(indent, "\t")
+	// Close brace with parent indent (detect from opening brace line)
+	openLine := obj.OpenRange.Start.Line
+	if openLine > 0 && openLine <= len(lines) {
+		lineContent := string(lines[openLine-1])
+		parentIndent := ""
+		for _, ch := range lineContent {
+			if ch == ' ' || ch == '\t' {
+				parentIndent += string(ch)
+			} else {
+				break
+			}
+		}
+		buf.WriteString(parentIndent)
 	}
-	buf.WriteString(parentIndent)
 	buf.WriteString("}")
 
 	return buf.String()

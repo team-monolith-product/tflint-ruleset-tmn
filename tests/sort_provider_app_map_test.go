@@ -87,6 +87,19 @@ locals {
 }`,
 			expected: 1,
 		},
+		{
+			name: "with comments should trigger",
+			content: `
+provider_to_app_map = {
+    service = {
+        # comment for zzz
+        zzz_config = {}
+        # comment for aaa
+        aaa_config = {}
+    }
+}`,
+			expected: 1,
+		},
 	}
 
 	rule := rules.NewSortProviderAppMapRule()
@@ -169,4 +182,43 @@ func indexOf(s, substr string) int {
 		}
 	}
 	return -1
+}
+
+func TestProviderAppMapSortedRule_Autofix_PreservesComments(t *testing.T) {
+	content := `
+provider_to_app_map = {
+    service = {
+        # comment for zebra
+        zebra_config = {}
+        # comment for alpha
+        alpha_config = {}
+    }
+}`
+
+	rule := rules.NewSortProviderAppMapRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"local_config.tf": content,
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	changes := runner.Changes()
+	fixed := string(changes["local_config.tf"])
+
+	// Check that comments are preserved
+	if indexOf(fixed, "# comment for alpha") == -1 {
+		t.Errorf("comment for alpha was lost\nfixed:\n%s", fixed)
+	}
+	if indexOf(fixed, "# comment for zebra") == -1 {
+		t.Errorf("comment for zebra was lost\nfixed:\n%s", fixed)
+	}
+
+	// Check that alpha comment comes before alpha_config
+	alphaCommentIdx := indexOf(fixed, "# comment for alpha")
+	alphaIdx := indexOf(fixed, "alpha_config")
+	if alphaCommentIdx > alphaIdx {
+		t.Errorf("alpha comment should come before alpha_config\nfixed:\n%s", fixed)
+	}
 }
