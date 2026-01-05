@@ -1,0 +1,259 @@
+package tests
+
+import (
+	"testing"
+
+	"github.com/team-monolith-product/tflint-ruleset-tmn/rules"
+	"github.com/terraform-linters/tflint-plugin-sdk/helper"
+)
+
+func TestProviderAppMapSortedRule(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected int // number of issues
+	}{
+		{
+			name: "sorted keys should not trigger",
+			content: `
+provider_to_app_map = {
+    service = {
+        aaa_config = {}
+        bbb_config = {}
+        ccc_config = {}
+    }
+}`,
+			expected: 0,
+		},
+		{
+			name: "unsorted keys should trigger",
+			content: `
+provider_to_app_map = {
+    service = {
+        ccc_config = {}
+        aaa_config = {}
+        bbb_config = {}
+    }
+}`,
+			expected: 1,
+		},
+		{
+			name: "extra blank lines should trigger",
+			content: `
+provider_to_app_map = {
+    service = {
+        aaa_config = {}
+
+        bbb_config = {}
+    }
+}`,
+			expected: 1,
+		},
+		{
+			name: "single entry should not trigger",
+			content: `
+provider_to_app_map = {
+    service = {
+        only_config = {}
+    }
+}`,
+			expected: 0,
+		},
+		{
+			name: "multiple providers with issues should trigger multiple",
+			content: `
+provider_to_app_map = {
+    service = {
+        zzz_config = {}
+        aaa_config = {}
+    }
+    jupyter = {
+        zzz_config = {}
+        aaa_config = {}
+    }
+}`,
+			expected: 2,
+		},
+		{
+			name: "inside locals block should work",
+			content: `
+locals {
+    provider_to_app_map = {
+        service = {
+            zzz_config = {}
+            aaa_config = {}
+        }
+    }
+}`,
+			expected: 1,
+		},
+		{
+			name: "with comments should trigger",
+			content: `
+provider_to_app_map = {
+    service = {
+        # comment for zzz
+        zzz_config = {}
+        # comment for aaa
+        aaa_config = {}
+    }
+}`,
+			expected: 1,
+		},
+		{
+			name: "commented out blocks between items should not trigger",
+			content: `
+provider_to_app_map = {
+    service = {
+        aaa_config = {}
+        # bbb_config = {
+        #   path = "bbb"
+        # }
+        ccc_config = {}
+    }
+}`,
+			expected: 0,
+		},
+		{
+			name: "mixed comments and blank lines should trigger",
+			content: `
+provider_to_app_map = {
+    service = {
+        aaa_config = {}
+        # some comment
+
+        ccc_config = {}
+    }
+}`,
+			expected: 1,
+		},
+	}
+
+	rule := rules.NewSortProviderAppMapRule()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{
+				"local_config.tf": tt.content,
+			})
+
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			if len(runner.Issues) != tt.expected {
+				t.Errorf("expected %d issues, got %d", tt.expected, len(runner.Issues))
+				for _, issue := range runner.Issues {
+					t.Logf("  issue: %s", issue.Message)
+				}
+			}
+		})
+	}
+}
+
+func TestProviderAppMapSortedRule_Autofix(t *testing.T) {
+	content := `
+provider_to_app_map = {
+    service = {
+        zebra_config = {}
+        alpha_config = {}
+
+        beta_config = {}
+    }
+}`
+
+	rule := rules.NewSortProviderAppMapRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"local_config.tf": content,
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if len(runner.Issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(runner.Issues))
+	}
+
+	changes := runner.Changes()
+	if len(changes) == 0 {
+		t.Fatal("expected autofix changes")
+	}
+
+	// Verify the fix contains sorted keys
+	fixedBytes := changes["local_config.tf"]
+	if len(fixedBytes) == 0 {
+		t.Fatal("expected changes to local_config.tf")
+	}
+	fixed := string(fixedBytes)
+
+	// Check that alpha comes before beta which comes before zebra
+	alphaIdx := indexOf(fixed, "alpha_config")
+	betaIdx := indexOf(fixed, "beta_config")
+	zebraIdx := indexOf(fixed, "zebra_config")
+
+	if alphaIdx == -1 || betaIdx == -1 || zebraIdx == -1 {
+		t.Fatalf("missing expected keys in fixed content: %s", fixed)
+	}
+
+	if !(alphaIdx < betaIdx && betaIdx < zebraIdx) {
+		t.Errorf("keys not properly sorted. alpha=%d, beta=%d, zebra=%d\nfixed:\n%s",
+			alphaIdx, betaIdx, zebraIdx, fixed)
+	}
+}
+
+func indexOf(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
+}
+
+func TestProviderAppMapSortedRule_Autofix_PreservesComments(t *testing.T) {
+	content := `
+provider_to_app_map = {
+    service = {
+        # comment for zebra
+        zebra_config = {}
+        # comment for alpha
+        alpha_config = {}
+        # trailing comment
+        # another trailing comment
+    }
+}`
+
+	rule := rules.NewSortProviderAppMapRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"local_config.tf": content,
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	changes := runner.Changes()
+	fixed := string(changes["local_config.tf"])
+
+	// Check that all comments are preserved
+	if indexOf(fixed, "# comment for alpha") == -1 {
+		t.Errorf("comment for alpha was lost\nfixed:\n%s", fixed)
+	}
+	if indexOf(fixed, "# comment for zebra") == -1 {
+		t.Errorf("comment for zebra was lost\nfixed:\n%s", fixed)
+	}
+	if indexOf(fixed, "# trailing comment") == -1 {
+		t.Errorf("trailing comment was lost\nfixed:\n%s", fixed)
+	}
+	if indexOf(fixed, "# another trailing comment") == -1 {
+		t.Errorf("another trailing comment was lost\nfixed:\n%s", fixed)
+	}
+
+	// Check that alpha comment comes before alpha_config
+	alphaCommentIdx := indexOf(fixed, "# comment for alpha")
+	alphaIdx := indexOf(fixed, "alpha_config")
+	if alphaCommentIdx > alphaIdx {
+		t.Errorf("alpha comment should come before alpha_config\nfixed:\n%s", fixed)
+	}
+}
