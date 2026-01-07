@@ -86,5 +86,21 @@ tflint
 
 **규칙:**
 - 룰 이름은 동사형으로 작성 (예: `sort_xxx`, `validate_xxx`, `require_xxx`)
+- 룰 파일 상단에 `@example GOOD`과 `@example BAD` 주석을 반드시 포함
+
+**룰 파일 주석 형식:**
+```go
+// Rule: rule_name
+//
+// 룰에 대한 설명
+//
+// @example GOOD
+// // 올바른 코드 예시
+//
+// @example BAD
+// // 잘못된 코드 예시
+
+package rules
+```
 
 참고: [TFLint Custom Rules Guide](https://github.com/terraform-linters/tflint/blob/master/docs/developer-guide/plugins.md)

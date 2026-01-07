@@ -1,3 +1,19 @@
+// Rule: foreach_toset
+//
+// `for_each = { for x in list : x => x }` 패턴을 `toset()`으로 변환합니다.
+//
+// @example GOOD
+// resource "aws_instance" "example" {
+//   for_each = toset(var.instances)
+//   # ...
+// }
+//
+// @example BAD
+// resource "aws_instance" "example" {
+//   for_each = { for x in var.instances : x => x }
+//   # ...
+// }
+
 package rules
 
 import (
