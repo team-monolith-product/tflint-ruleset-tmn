@@ -1,3 +1,30 @@
+// Rule: sort_provider_app_map
+//
+// `provider_to_app_map` 내 키를 알파벳순으로 정렬하고 불필요한 공백을 제거합니다.
+//
+// @example GOOD
+// locals {
+//   provider_to_app_map = {
+//     aws = {
+//       app_a = "value"
+//       app_b = "value"
+//       app_c = "value"
+//     }
+//   }
+// }
+//
+// @example BAD
+// locals {
+//   provider_to_app_map = {
+//     aws = {
+//       app_c = "value"
+//       app_a = "value"
+//
+//       app_b = "value"
+//     }
+//   }
+// }
+
 package rules
 
 import (
@@ -11,8 +38,6 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-// SortProviderAppMapRule checks that keys in provider_to_app_map nested objects
-// are sorted alphabetically and have no extra blank lines between entries.
 type SortProviderAppMapRule struct {
 	tflint.DefaultRule
 }
