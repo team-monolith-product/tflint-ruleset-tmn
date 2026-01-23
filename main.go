@@ -14,6 +14,7 @@ func main() {
 			Rules: []tflint.Rule{
 				rules.NewForEachTosetRule(),
 				rules.NewSortProviderAppMapRule(),
+				rules.NewRequireTrailingCommaRule(),
 			},
 		},
 	})
