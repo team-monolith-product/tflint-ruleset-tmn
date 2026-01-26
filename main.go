@@ -10,12 +10,13 @@ func main() {
 	plugin.Serve(&plugin.ServeOpts{
 		RuleSet: &tflint.BuiltinRuleSet{
 			Name:    "tmn",
-			Version: "0.4.0",
+			Version: "0.5.0",
 			Rules: []tflint.Rule{
 				rules.NewForEachTosetRule(),
 				rules.NewSortProviderAppMapRule(),
 				rules.NewSortAdditionalSecretsDataRule(),
 				rules.NewSortAdditionalParametersDataRule(),
+				rules.NewRequireAdditionalParametersTrailingCommaRule(),
 			},
 		},
 	})
