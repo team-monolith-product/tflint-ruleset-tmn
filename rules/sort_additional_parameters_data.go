@@ -316,9 +316,17 @@ func (r *SortAdditionalParametersDataRule) fixTuple(tuple *hclsyntax.TupleConsEx
 			}
 		}
 
+		// Normalize: strip trailing comma from captured content
+		// so we can consistently add commas during reconstruction
+		content := strings.Join(contentLines, "\n")
+		content = strings.TrimRight(content, " \t\n")
+		if strings.HasSuffix(content, ",") {
+			content = content[:len(content)-1]
+		}
+
 		entries = append(entries, entry{
 			name:    name,
-			content: strings.Join(contentLines, "\n"),
+			content: content,
 		})
 	}
 
@@ -346,7 +354,7 @@ func (r *SortAdditionalParametersDataRule) fixTuple(tuple *hclsyntax.TupleConsEx
 	buf.WriteString("[\n")
 	for _, e := range entries {
 		buf.WriteString(e.content)
-		buf.WriteString("\n")
+		buf.WriteString(",\n")
 	}
 	buf.WriteString(baseIndent)
 	buf.WriteString("]")

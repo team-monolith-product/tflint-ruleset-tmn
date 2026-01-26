@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/team-monolith-product/tflint-ruleset-tmn/rules"
@@ -316,5 +317,68 @@ provider_to_app_map = {
 	// aaa-value should appear after aaa-param and before zzz-param
 	if !(aaaIdx < aaaValueIdx && aaaValueIdx < zzzIdx) {
 		t.Errorf("aaa-value not properly associated with aaa-param\nfixed:\n%s", fixed)
+	}
+}
+
+func TestSortAdditionalParametersDataRule_Autofix_LastElementNoTrailingComma(t *testing.T) {
+	// Reproduces the bug where the last element has no trailing comma.
+	// After sorting, it may become a middle element, causing "Missing item separator".
+	content := `
+provider_to_app_map = {
+    aws = {
+        user_rails = {
+            additional_parameters = [
+                {
+                    name  = "ingress.tls[0].hosts[0]",
+                    value = "class.example.com"
+                },
+                {
+                    name  = "secretName"
+                    value = "class-rails-master-key-secret"
+                },
+                {
+                    name  = "env.AI_FASTAPI_URL"
+                    value = "https://ai-fastapi.example.com"
+                }
+            ]
+        }
+    }
+}`
+
+	rule := rules.NewSortAdditionalParametersDataRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"local_config.tf": content,
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if len(runner.Issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(runner.Issues))
+	}
+
+	changes := runner.Changes()
+	fixed := string(changes["local_config.tf"])
+
+	// Expected order: env.AI_FASTAPI_URL < ingress.tls[0].hosts[0] < secretName
+	aiIdx := indexOf(fixed, "env.AI_FASTAPI_URL")
+	ingressIdx := indexOf(fixed, "ingress.tls[0].hosts[0]")
+	secretIdx := indexOf(fixed, "secretName")
+
+	if aiIdx == -1 || ingressIdx == -1 || secretIdx == -1 {
+		t.Fatalf("missing expected names in fixed content:\n%s", fixed)
+	}
+
+	if !(aiIdx < ingressIdx && ingressIdx < secretIdx) {
+		t.Errorf("elements not properly sorted by name.\n"+
+			"ai=%d, ingress=%d, secret=%d\nfixed:\n%s",
+			aiIdx, ingressIdx, secretIdx, fixed)
+	}
+
+	// Verify the fixed output is valid HCL by checking it doesn't have
+	// consecutive closing/opening braces without commas
+	if strings.Contains(fixed, "}\n                {") {
+		t.Errorf("missing comma separator between elements in fixed output:\n%s", fixed)
 	}
 }
