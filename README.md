@@ -37,6 +37,7 @@ tflint --init
 | foreach_toset | `{ for x in list : x => x }` 패턴을 `toset()`으로 변환 (autofix 지원) | WARNING | ✔ |
 | sort_provider_app_map | `provider_to_app_map` 내 키 알파벳순 정렬 및 불필요한 공백 제거 (autofix 지원) | WARNING | ✔ |
 | sort_additional_secrets_data | `additional_secrets[*].data` 내 키 알파벳순 정렬 (autofix 지원) | WARNING | ✔ |
+| sort_additional_parameters_data | `additional_parameters[*].data` 내 키 알파벳순 정렬 (autofix 지원) | WARNING | ✔ |
 
 ## Building
 
