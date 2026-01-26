@@ -85,6 +85,7 @@ tflint
 2. `tests/` 디렉토리에 테스트 파일 생성
 3. `main.go`의 `Rules` 슬라이스에 룰 등록
 4. `README.md`의 Rules 테이블 업데이트
+5. `main.go`의 `Version` 값을 올림 (새 룰 추가 시 minor 버전 업데이트)
 
 **규칙:**
 - 룰 이름은 동사형으로 작성 (예: `sort_xxx`, `validate_xxx`, `require_xxx`)
