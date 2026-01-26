@@ -1,6 +1,6 @@
 // Rule: sort_additional_parameters_data
 //
-// `additional_parameters[*].data` 내 키를 알파벳순으로 정렬합니다.
+// `additional_parameters` 배열 내 요소를 `name` 값 기준 알파벳순으로 정렬합니다.
 //
 // @example GOOD
 // locals {
@@ -9,13 +9,17 @@
 //       user_rails = {
 //         additional_parameters = [
 //           {
-//             name = "param"
-//             data = {
-//               aaa-param = "value-a"
-//               bbb-param = "value-b"
-//               ccc-param = "value-c"
-//             }
-//           }
+//             name  = "react.env.REACT_APP_AI_URL"
+//             value = "https://ai.example.com"
+//           },
+//           {
+//             name  = "react.env.REACT_APP_LANDING_URL"
+//             value = "https://landing.example.com"
+//           },
+//           {
+//             name  = "react.ingress.hosts[0].host"
+//             value = "example.com"
+//           },
 //         ]
 //       }
 //     }
@@ -29,13 +33,17 @@
 //       user_rails = {
 //         additional_parameters = [
 //           {
-//             name = "param"
-//             data = {
-//               ccc-param = "value-c"
-//               aaa-param = "value-a"
-//               bbb-param = "value-b"
-//             }
-//           }
+//             name  = "react.ingress.hosts[0].host"
+//             value = "example.com"
+//           },
+//           {
+//             name  = "react.env.REACT_APP_AI_URL"
+//             value = "https://ai.example.com"
+//           },
+//           {
+//             name  = "react.env.REACT_APP_LANDING_URL"
+//             value = "https://landing.example.com"
+//           },
 //         ]
 //       }
 //     }
@@ -146,7 +154,6 @@ func (r *SortAdditionalParametersDataRule) checkProviderToAppMap(runner tflint.R
 			for _, attrItem := range appObj.Items {
 				keyRange := attrItem.KeyExpr.Range()
 				key := string(keyRange.SliceBytes(src))
-				// Remove quotes if present
 				key = strings.Trim(key, "\"")
 
 				if key == "additional_parameters" {
@@ -167,56 +174,25 @@ func (r *SortAdditionalParametersDataRule) checkAdditionalParameters(runner tfli
 		return nil
 	}
 
-	// Iterate through each parameter object in the array
-	for _, elemExpr := range tupleExpr.Exprs {
-		paramObj, ok := elemExpr.(*hclsyntax.ObjectConsExpr)
-		if !ok {
-			continue
-		}
-
-		// Find data attribute
-		for _, attrItem := range paramObj.Items {
-			keyRange := attrItem.KeyExpr.Range()
-			key := string(keyRange.SliceBytes(src))
-			key = strings.Trim(key, "\"")
-
-			if key == "data" {
-				dataObj, ok := attrItem.ValueExpr.(*hclsyntax.ObjectConsExpr)
-				if !ok {
-					continue
-				}
-
-				if err := r.checkDataObjectSorting(runner, src, dataObj); err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func (r *SortAdditionalParametersDataRule) checkDataObjectSorting(runner tflint.Runner, src []byte, dataObj *hclsyntax.ObjectConsExpr) error {
-	if len(dataObj.Items) <= 1 {
+	if len(tupleExpr.Exprs) <= 1 {
 		return nil
 	}
 
-	// Extract keys
-	var keys []string
-	for _, item := range dataObj.Items {
-		keyRange := item.KeyExpr.Range()
-		key := string(keyRange.SliceBytes(src))
-		keys = append(keys, key)
+	// Extract name values from each element
+	names := make([]string, 0, len(tupleExpr.Exprs))
+	for _, elemExpr := range tupleExpr.Exprs {
+		name := r.extractName(elemExpr, src)
+		names = append(names, name)
 	}
 
 	// Check if sorted
-	sortedKeys := make([]string, len(keys))
-	copy(sortedKeys, keys)
-	sort.Strings(sortedKeys)
+	sorted := make([]string, len(names))
+	copy(sorted, names)
+	sort.Strings(sorted)
 
 	needsFix := false
-	for i, key := range keys {
-		if key != sortedKeys[i] {
+	for i, name := range names {
+		if name != sorted[i] {
 			needsFix = true
 			break
 		}
@@ -226,95 +202,154 @@ func (r *SortAdditionalParametersDataRule) checkDataObjectSorting(runner tflint.
 		return nil
 	}
 
-	// Capture for closure
-	capturedObj := dataObj
+	capturedTuple := tupleExpr
 
 	return runner.EmitIssueWithFix(
 		r,
-		"Keys in additional_parameters data should be sorted alphabetically",
-		dataObj.Range(),
+		"Elements in additional_parameters should be sorted by name",
+		tupleExpr.Range(),
 		func(f tflint.Fixer) error {
-			fixed := r.fixDataObject(capturedObj, src)
-			return f.ReplaceText(capturedObj.Range(), fixed)
+			fixed := r.fixTuple(capturedTuple, src)
+			return f.ReplaceText(capturedTuple.Range(), fixed)
 		},
 	)
 }
 
-func (r *SortAdditionalParametersDataRule) fixDataObject(obj *hclsyntax.ObjectConsExpr, src []byte) string {
-	if len(obj.Items) == 0 {
-		return string(obj.Range().SliceBytes(src))
+// extractName extracts the "name" attribute value from an object expression
+func (r *SortAdditionalParametersDataRule) extractName(expr hclsyntax.Expression, src []byte) string {
+	objExpr, ok := expr.(*hclsyntax.ObjectConsExpr)
+	if !ok {
+		return ""
 	}
 
-	type entry struct {
-		key     string
-		content string
+	for _, item := range objExpr.Items {
+		keyRange := item.KeyExpr.Range()
+		key := string(keyRange.SliceBytes(src))
+		key = strings.Trim(key, "\"")
+
+		if key == "name" {
+			valRange := item.ValueExpr.Range()
+			val := string(valRange.SliceBytes(src))
+			return strings.Trim(val, "\"")
+		}
+	}
+
+	return ""
+}
+
+func (r *SortAdditionalParametersDataRule) fixTuple(tuple *hclsyntax.TupleConsExpr, src []byte) string {
+	if len(tuple.Exprs) == 0 {
+		return string(tuple.Range().SliceBytes(src))
 	}
 
 	lines := bytes.Split(src, []byte("\n"))
+
+	type entry struct {
+		name    string
+		content string
+	}
+
 	var entries []entry
 
-	// Extract each key-value pair
-	for i, item := range obj.Items {
-		keyRange := item.KeyExpr.Range()
-		key := string(keyRange.SliceBytes(src))
+	for i, elemExpr := range tuple.Exprs {
+		name := r.extractName(elemExpr, src)
 
-		var startLine int
-		if i == 0 {
-			startLine = obj.OpenRange.End.Line + 1
-		} else {
-			startLine = obj.Items[i-1].ValueExpr.Range().End.Line + 1
+		// Determine the line range for this element
+		elemRange := elemExpr.Range()
+		startLine := elemRange.Start.Line
+		endLine := elemRange.End.Line
+
+		// Include trailing comma on the same line or next line
+		if endLine > 0 && endLine <= len(lines) {
+			lineAfterClose := string(lines[endLine-1])
+			// Check if there's a comma after the closing brace on the same line
+			endCol := elemRange.End.Column - 1
+			if endCol < len(lineAfterClose) {
+				rest := strings.TrimSpace(lineAfterClose[endCol:])
+				if strings.HasPrefix(rest, ",") {
+					// comma is on the same line, already included
+				}
+			}
 		}
-		endLine := item.ValueExpr.Range().End.Line
 
+		// For elements after the first, check if there are blank lines before
 		var contentLines []string
+		actualStart := startLine
+		if i > 0 {
+			prevEnd := tuple.Exprs[i-1].Range().End.Line
+			// Include lines between previous element and this one (blank lines)
+			for lineNum := prevEnd + 1; lineNum < startLine; lineNum++ {
+				if lineNum > 0 && lineNum <= len(lines) {
+					trimmed := strings.TrimSpace(string(lines[lineNum-1]))
+					if trimmed == "" || trimmed == "," {
+						// skip inter-element whitespace/commas
+						continue
+					}
+				}
+			}
+			_ = actualStart
+		}
+
+		// Extract the element content from source
 		for lineNum := startLine; lineNum <= endLine; lineNum++ {
 			if lineNum > 0 && lineNum <= len(lines) {
-				line := string(lines[lineNum-1])
-				trimmed := strings.TrimSpace(line)
-				if trimmed == "" {
-					continue
+				contentLines = append(contentLines, string(lines[lineNum-1]))
+			}
+		}
+
+		// Handle trailing comma: check if the last line has a comma after the closing brace
+		if len(contentLines) > 0 {
+			lastLine := contentLines[len(contentLines)-1]
+			endCol := elemRange.End.Column - 1
+			if endCol < len(lastLine) {
+				rest := strings.TrimSpace(lastLine[endCol:])
+				if !strings.HasPrefix(rest, ",") {
+					// No trailing comma on this line, check if comma is on the next line
+					nextLine := endLine + 1
+					if nextLine > 0 && nextLine <= len(lines) {
+						trimmed := strings.TrimSpace(string(lines[nextLine-1]))
+						if trimmed == "," {
+							contentLines = append(contentLines, string(lines[nextLine-1]))
+						}
+					}
 				}
-				contentLines = append(contentLines, line)
 			}
 		}
 
 		entries = append(entries, entry{
-			key:     key,
+			name:    name,
 			content: strings.Join(contentLines, "\n"),
 		})
 	}
 
-	// Sort by key
+	// Sort by name
 	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].key < entries[j].key
+		return entries[i].name < entries[j].name
 	})
 
-	// Build the fixed object
-	var buf bytes.Buffer
-	buf.WriteString("{\n")
-	for i, e := range entries {
-		buf.WriteString(e.content)
-		if i < len(entries)-1 {
-			buf.WriteString("\n")
-		}
-	}
-	buf.WriteString("\n")
-
-	// Close brace with parent indent
-	openLine := obj.OpenRange.Start.Line
+	// Determine indentation from the opening bracket line
+	openLine := tuple.OpenRange.Start.Line
+	baseIndent := ""
 	if openLine > 0 && openLine <= len(lines) {
 		lineContent := string(lines[openLine-1])
-		parentIndent := ""
 		for _, ch := range lineContent {
 			if ch == ' ' || ch == '\t' {
-				parentIndent += string(ch)
+				baseIndent += string(ch)
 			} else {
 				break
 			}
 		}
-		buf.WriteString(parentIndent)
 	}
-	buf.WriteString("}")
+
+	// Build the fixed tuple
+	var buf bytes.Buffer
+	buf.WriteString("[\n")
+	for _, e := range entries {
+		buf.WriteString(e.content)
+		buf.WriteString("\n")
+	}
+	buf.WriteString(baseIndent)
+	buf.WriteString("]")
 
 	return buf.String()
 }

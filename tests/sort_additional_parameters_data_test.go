@@ -11,23 +11,27 @@ func TestSortAdditionalParametersDataRule(t *testing.T) {
 	tests := []struct {
 		name     string
 		content  string
-		expected int // number of issues
+		expected int
 	}{
 		{
-			name: "sorted keys should not trigger",
+			name: "sorted by name should not trigger",
 			content: `
 provider_to_app_map = {
     aws = {
         user_rails = {
             additional_parameters = [
                 {
-                    name = "param"
-                    data = {
-                        aaa-param = "value-a"
-                        bbb-param = "value-b"
-                        ccc-param = "value-c"
-                    }
-                }
+                    name  = "react.env.REACT_APP_AI_URL"
+                    value = "https://ai.example.com"
+                },
+                {
+                    name  = "react.env.REACT_APP_LANDING_URL"
+                    value = "https://landing.example.com"
+                },
+                {
+                    name  = "react.ingress.hosts[0].host"
+                    value = "example.com"
+                },
             ]
         }
     }
@@ -35,20 +39,24 @@ provider_to_app_map = {
 			expected: 0,
 		},
 		{
-			name: "unsorted keys should trigger",
+			name: "unsorted by name should trigger",
 			content: `
 provider_to_app_map = {
     aws = {
         user_rails = {
             additional_parameters = [
                 {
-                    name = "param"
-                    data = {
-                        ccc-param = "value-c"
-                        aaa-param = "value-a"
-                        bbb-param = "value-b"
-                    }
-                }
+                    name  = "react.ingress.hosts[0].host"
+                    value = "example.com"
+                },
+                {
+                    name  = "react.env.REACT_APP_AI_URL"
+                    value = "https://ai.example.com"
+                },
+                {
+                    name  = "react.env.REACT_APP_LANDING_URL"
+                    value = "https://landing.example.com"
+                },
             ]
         }
     }
@@ -56,18 +64,16 @@ provider_to_app_map = {
 			expected: 1,
 		},
 		{
-			name: "single entry should not trigger",
+			name: "single element should not trigger",
 			content: `
 provider_to_app_map = {
     aws = {
         user_rails = {
             additional_parameters = [
                 {
-                    name = "param"
-                    data = {
-                        only-param = "value"
-                    }
-                }
+                    name  = "react.env.REACT_APP_AI_URL"
+                    value = "https://ai.example.com"
+                },
             ]
         }
     }
@@ -75,31 +81,16 @@ provider_to_app_map = {
 			expected: 0,
 		},
 		{
-			name: "multiple parameters with unsorted data should trigger multiple",
+			name: "empty array should not trigger",
 			content: `
 provider_to_app_map = {
     aws = {
         user_rails = {
-            additional_parameters = [
-                {
-                    name = "param1"
-                    data = {
-                        zzz-param = "value-z"
-                        aaa-param = "value-a"
-                    }
-                },
-                {
-                    name = "param2"
-                    data = {
-                        yyy-param = "value-y"
-                        bbb-param = "value-b"
-                    }
-                }
-            ]
+            additional_parameters = []
         }
     }
 }`,
-			expected: 2,
+			expected: 0,
 		},
 		{
 			name: "inside locals block should work",
@@ -110,35 +101,19 @@ locals {
             user_rails = {
                 additional_parameters = [
                     {
-                        name = "param"
-                        data = {
-                            zzz-param = "value-z"
-                            aaa-param = "value-a"
-                        }
-                    }
+                        name  = "zzz"
+                        value = "val-z"
+                    },
+                    {
+                        name  = "aaa"
+                        value = "val-a"
+                    },
                 ]
             }
         }
     }
 }`,
 			expected: 1,
-		},
-		{
-			name: "empty data should not trigger",
-			content: `
-provider_to_app_map = {
-    aws = {
-        user_rails = {
-            additional_parameters = [
-                {
-                    name = "param"
-                    data = {}
-                }
-            ]
-        }
-    }
-}`,
-			expected: 0,
 		},
 		{
 			name: "no additional_parameters should not trigger",
@@ -153,30 +128,32 @@ provider_to_app_map = {
 			expected: 0,
 		},
 		{
-			name: "multiple apps with unsorted data",
+			name: "multiple apps with unsorted parameters",
 			content: `
 provider_to_app_map = {
     aws = {
         user_rails = {
             additional_parameters = [
                 {
-                    name = "param"
-                    data = {
-                        zzz = "value-z"
-                        aaa = "value-a"
-                    }
-                }
+                    name  = "zzz"
+                    value = "val-z"
+                },
+                {
+                    name  = "aaa"
+                    value = "val-a"
+                },
             ]
         }
         admin_rails = {
             additional_parameters = [
                 {
-                    name = "param"
-                    data = {
-                        yyy = "value-y"
-                        bbb = "value-b"
-                    }
-                }
+                    name  = "yyy"
+                    value = "val-y"
+                },
+                {
+                    name  = "bbb"
+                    value = "val-b"
+                },
             ]
         }
     }
@@ -214,13 +191,25 @@ provider_to_app_map = {
         user_rails = {
             additional_parameters = [
                 {
-                    name = "param"
-                    data = {
-                        zebra-param = "value-zebra"
-                        alpha-param = "value-alpha"
-                        beta-param  = "value-beta"
-                    }
-                }
+                    name  = "react.ingress.tls[0].hosts[0]"
+                    value = local.dep.domain
+                },
+                {
+                    name  = "react.ingress.hosts[0].host"
+                    value = local.dep.domain
+                },
+                {
+                    name  = "react.env.REACT_APP_JUPYTER_HUB_REPLICA"
+                    value = local.jupyter_hub_replica_count
+                },
+                {
+                    name  = "react.env.REACT_APP_AI_FASTAPI_URL"
+                    value = "https://ai-fastapi.${local.dep.domain}"
+                },
+                {
+                    name  = "react.env.REACT_APP_LANDING_URL"
+                    value = "https://ai.${local.dep.domain}"
+                },
             ]
         }
     }
@@ -250,41 +239,44 @@ provider_to_app_map = {
 	}
 	fixed := string(fixedBytes)
 
-	// Check that alpha comes before beta which comes before zebra
-	alphaIdx := indexOf(fixed, "alpha-param")
-	betaIdx := indexOf(fixed, "beta-param")
-	zebraIdx := indexOf(fixed, "zebra-param")
+	// Expected order by name:
+	// react.env.REACT_APP_AI_FASTAPI_URL
+	// react.env.REACT_APP_JUPYTER_HUB_REPLICA
+	// react.env.REACT_APP_LANDING_URL
+	// react.ingress.hosts[0].host
+	// react.ingress.tls[0].hosts[0]
+	aiIdx := indexOf(fixed, "REACT_APP_AI_FASTAPI_URL")
+	jupyterIdx := indexOf(fixed, "REACT_APP_JUPYTER_HUB_REPLICA")
+	landingIdx := indexOf(fixed, "REACT_APP_LANDING_URL")
+	hostsIdx := indexOf(fixed, "react.ingress.hosts[0].host")
+	tlsIdx := indexOf(fixed, "react.ingress.tls[0].hosts[0]")
 
-	if alphaIdx == -1 || betaIdx == -1 || zebraIdx == -1 {
-		t.Fatalf("missing expected keys in fixed content: %s", fixed)
+	if aiIdx == -1 || jupyterIdx == -1 || landingIdx == -1 || hostsIdx == -1 || tlsIdx == -1 {
+		t.Fatalf("missing expected names in fixed content:\n%s", fixed)
 	}
 
-	if !(alphaIdx < betaIdx && betaIdx < zebraIdx) {
-		t.Errorf("keys not properly sorted. alpha=%d, beta=%d, zebra=%d\nfixed:\n%s",
-			alphaIdx, betaIdx, zebraIdx, fixed)
+	if !(aiIdx < jupyterIdx && jupyterIdx < landingIdx && landingIdx < hostsIdx && hostsIdx < tlsIdx) {
+		t.Errorf("elements not properly sorted by name.\n"+
+			"ai=%d, jupyter=%d, landing=%d, hosts=%d, tls=%d\nfixed:\n%s",
+			aiIdx, jupyterIdx, landingIdx, hostsIdx, tlsIdx, fixed)
 	}
 }
 
-func TestSortAdditionalParametersDataRule_RealWorldExample(t *testing.T) {
+func TestSortAdditionalParametersDataRule_Autofix_PreservesValues(t *testing.T) {
 	content := `
-locals {
-    provider_to_app_map = {
-        provider_a = {
-            user_rails = {
-                additional_secrets = []
-                additional_parameters = [
-                    {
-                        name = "user-rails-params"
-                        data = {
-                            redis-url          = "redis://localhost:6379"
-                            database-url       = "postgres://localhost:5432"
-                            app-name           = "user-rails"
-                            smtp-server        = "smtp.example.com"
-                            log-level          = "info"
-                        }
-                    }
-                ]
-            }
+provider_to_app_map = {
+    aws = {
+        user_rails = {
+            additional_parameters = [
+                {
+                    name  = "zzz-param"
+                    value = "zzz-value"
+                },
+                {
+                    name  = "aaa-param"
+                    value = "aaa-value"
+                },
+            ]
         }
     }
 }`
@@ -298,22 +290,31 @@ locals {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	// Should trigger because keys are not sorted (app-name should come first, then database-url, etc.)
-	if len(runner.Issues) != 1 {
-		t.Fatalf("expected 1 issue, got %d", len(runner.Issues))
-	}
-
 	changes := runner.Changes()
 	fixed := string(changes["local_config.tf"])
 
-	// Verify sorting: app-name < database-url < log-level < redis-url < smtp-server
-	appNameIdx := indexOf(fixed, "app-name")
-	databaseIdx := indexOf(fixed, "database-url")
-	logLevelIdx := indexOf(fixed, "log-level")
-	redisIdx := indexOf(fixed, "redis-url")
-	smtpIdx := indexOf(fixed, "smtp-server")
+	// After fix, aaa-param should come before zzz-param
+	aaaIdx := indexOf(fixed, "aaa-param")
+	zzzIdx := indexOf(fixed, "zzz-param")
 
-	if !(appNameIdx < databaseIdx && databaseIdx < logLevelIdx && logLevelIdx < redisIdx && redisIdx < smtpIdx) {
-		t.Errorf("keys not properly sorted in real-world example\nfixed:\n%s", fixed)
+	if aaaIdx == -1 || zzzIdx == -1 {
+		t.Fatalf("missing expected content in fixed output:\n%s", fixed)
+	}
+
+	if aaaIdx > zzzIdx {
+		t.Errorf("aaa-param should come before zzz-param\nfixed:\n%s", fixed)
+	}
+
+	// Values should still be associated correctly
+	aaaValueIdx := indexOf(fixed, "aaa-value")
+	zzzValueIdx := indexOf(fixed, "zzz-value")
+
+	if aaaValueIdx == -1 || zzzValueIdx == -1 {
+		t.Fatalf("values were lost in fix:\n%s", fixed)
+	}
+
+	// aaa-value should appear after aaa-param and before zzz-param
+	if !(aaaIdx < aaaValueIdx && aaaValueIdx < zzzIdx) {
+		t.Errorf("aaa-value not properly associated with aaa-param\nfixed:\n%s", fixed)
 	}
 }

@@ -1,6 +1,6 @@
 module github.com/team-monolith-product/tflint-ruleset-tmn
 
-go 1.25.3
+go 1.24.7
 
 require (
 	github.com/hashicorp/hcl/v2 v2.24.0
