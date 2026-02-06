@@ -37,6 +37,7 @@ tflint --init
 | foreach_toset | `{ for x in list : x => x }` 패턴을 `toset()`으로 변환 (autofix 지원) | WARNING | ✔ |
 | sort_provider_app_map | `provider_to_app_map` 내 키 알파벳순 정렬 및 불필요한 공백 제거 (autofix 지원) | WARNING | ✔ |
 | sort_additional_secrets_data | `additional_secrets[*].data` 내 키 알파벳순 정렬 (autofix 지원) | WARNING | ✔ |
+| require_additional_parameters_trailing_comma | `additional_parameters` 배열 마지막 요소 뒤에 trailing comma 요구 (autofix 지원) | WARNING | ✔ |
 
 ## Building
 
@@ -84,6 +85,8 @@ tflint
 2. `tests/` 디렉토리에 테스트 파일 생성
 3. `main.go`의 `Rules` 슬라이스에 룰 등록
 4. `README.md`의 Rules 테이블 업데이트
+5. dev 버전으로 ped-terraform 검증 (아래 절차 참고)
+6. `main.go`의 `Version` 값을 올림
 
 **규칙:**
 - 룰 이름은 동사형으로 작성 (예: `sort_xxx`, `validate_xxx`, `require_xxx`)
@@ -103,5 +106,26 @@ tflint
 
 package rules
 ```
+
+### 새 룰 검증 (ped-terraform)
+
+새 룰 추가 시 반드시 ped-terraform에서 dev 버전으로 검증한 후 main에 병합합니다.
+
+1. tflint-ruleset-tmn의 feature 브랜치를 develop에 병합하여 `v0.0.0-dev` 릴리즈를 트리거합니다.
+2. ped-terraform에서 검증용 브랜치를 생성합니다.
+3. `.tflint.hcl`을 dev 버전으로 변경합니다:
+   ```hcl
+   plugin "tmn" {
+     enabled = true
+     version = "0.0.0-dev"
+     source  = "github.com/team-monolith-product/tflint-ruleset-tmn"
+   }
+   ```
+4. `tflint --init`으로 dev 버전을 설치합니다.
+5. `tflint`을 실행하여 린트 결과를 확인합니다.
+6. autofix 지원 룰의 경우 `tflint --fix`를 실행하여 수정 결과를 확인합니다.
+7. ped-terraform에 draft PR을 생성하여 린트 결과를 리뷰합니다.
+8. 검증이 완료되면 tflint-ruleset-tmn에서 main으로 PR을 생성합니다.
+9. tflint-ruleset-tmn 정식 릴리즈 후, ped-terraform draft PR의 `.tflint.hcl` 버전을 정식 버전으로 변경하여 린트 버전 업그레이드 PR로 사용합니다.
 
 참고: [TFLint Custom Rules Guide](https://github.com/terraform-linters/tflint/blob/master/docs/developer-guide/plugins.md)

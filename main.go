@@ -15,6 +15,7 @@ func main() {
 				rules.NewForEachTosetRule(),
 				rules.NewSortProviderAppMapRule(),
 				rules.NewSortAdditionalSecretsDataRule(),
+				rules.NewRequireAdditionalParametersTrailingCommaRule(),
 			},
 		},
 	})
